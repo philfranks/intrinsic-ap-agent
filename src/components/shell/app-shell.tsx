@@ -23,6 +23,7 @@ import {
 import { MARK } from "@/lib/brand/mark";
 import { useTheme } from "@/lib/use-theme";
 import { InvoiceIntake } from "@/components/ap/invoice-intake";
+import { Topbar } from "./topbar";
 
 type Page = "home" | "inbox" | "intake" | "runs" | "vendors" | "rules" | "connections" | "knowledge" | "settings";
 
@@ -171,13 +172,15 @@ export function AppShell() {
 function Placeholder({ page }: { page: Page }) {
   const [group, title] = PAGE_TITLES[page];
   return (
-    <main className="placeholder">
-      <div className="placeholder-inner">
-        <p className="crumb">{group}</p>
-        <h1>{title}</h1>
-        <p>This surface isn&apos;t designed yet. Invoice Intake is the first one built.</p>
-      </div>
-    </main>
+    <div className="page">
+      <Topbar crumbs={[{ label: group }, { label: title }]} />
+      <main className="placeholder">
+        <div className="placeholder-inner">
+          <h1>{title}</h1>
+          <p>This surface isn&apos;t designed yet. Invoice Intake is the first one built.</p>
+        </div>
+      </main>
+    </div>
   );
 }
 

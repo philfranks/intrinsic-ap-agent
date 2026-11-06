@@ -148,11 +148,14 @@ ul {
 }
 
 .nav-top {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   height: 52px;
+  flex: none;
   padding: 0 10px 0 16px;
+  border-bottom: 1px solid var(--line);
 }
 
 .brand {
@@ -205,7 +208,7 @@ ul {
   min-height: 0;
   flex-direction: column;
   gap: 2px;
-  padding: 4px 10px 12px;
+  padding: 10px 10px 12px;
   overflow-x: hidden;
   overflow-y: auto;
 }
@@ -529,11 +532,25 @@ ul {
 }
 
 .app[data-rail="collapsed"] .nav-top {
-  flex-direction: column;
   justify-content: center;
-  gap: 6px;
-  height: auto;
-  padding: 12px 0 8px;
+  padding: 0;
+}
+
+.app[data-rail="collapsed"] .nav-top .icon-btn {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  opacity: 0;
+}
+
+.app[data-rail="collapsed"] .nav-top:hover .icon-btn,
+.app[data-rail="collapsed"] .nav-top .icon-btn:focus-visible {
+  opacity: 1;
+  background: var(--hover);
+}
+
+.app[data-rail="collapsed"] .nav-top:hover .brand {
+  opacity: 0;
 }
 
 .app[data-rail="collapsed"] .workspace {
@@ -587,6 +604,90 @@ ul {
   display: flex;
   min-width: 0;
   min-height: 0;
+}
+
+.page {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+}
+
+/* ───────── Workspace top bar: matches the rail's logo row ───────── */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 52px;
+  flex: none;
+  padding: 0 16px 0 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.topbar-crumbs {
+  min-width: 0;
+}
+
+.topbar-crumbs ol {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  list-style: none;
+  white-space: nowrap;
+}
+
+.crumb-item {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+}
+
+.crumb-item button {
+  padding: 2px 4px;
+  margin: 0 -4px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.crumb-item button:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.crumb-item[data-current="true"] {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.crumb-item[data-mono="true"] {
+  font-family: var(--font-mono-ui);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.crumb-sep {
+  display: flex;
+  flex: none;
+  color: var(--faint);
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 8px;
 }
 
 /* Pages without a built surface yet */

@@ -10,6 +10,7 @@ import { SignalMark } from "./signal-mark";
 import { InvoiceThumb } from "./invoice-thumb";
 import { StepTimeline } from "./step-timeline";
 import { DraftRail } from "./draft-rail";
+import { Topbar } from "@/components/shell/topbar";
 
 const EXPO = [0.16, 1, 0.3, 1] as const;
 const SAMPLE_MIME = "application/x-intrinsic-sample";
@@ -101,45 +102,48 @@ export function InvoiceIntake() {
 
   return (
     <div className="intake" data-armed={armed ? "true" : undefined}>
+      <Topbar
+        crumbs={[
+          { label: "Accounts Payable" },
+          { label: "Invoice Intake" },
+          ...(state.file ? [{ label: state.file.name, mono: true }] : []),
+        ]}
+        actions={
+          <>
+            <AnimatePresence>
+              {!idle ? (
+                <motion.button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={() => {
+                    reset();
+                    setThumbFrom(null);
+                  }}
+                  initial={{ opacity: 0, x: 8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 8 }}
+                  transition={{ duration: 0.35, ease: EXPO }}
+                >
+                  <RotateCcw size={13} aria-hidden="true" />
+                  New run
+                </motion.button>
+              ) : null}
+            </AnimatePresence>
+            <div className="seg seg-sm" role="radiogroup" aria-label="Run mode">
+              <button type="button" role="radio" aria-checked="true" className="seg-item">
+                Rehearsal
+                <span className="seg-pill" />
+              </button>
+              <button type="button" role="radio" aria-checked="false" className="seg-item" disabled title="Connect a model key in Settings to run live">
+                Live
+              </button>
+            </div>
+          </>
+        }
+      />
+      <div className="intake-body">
       <div className="intake-main" ref={scrollRef}>
         <div className="intake-inner">
-          <header className="intake-head">
-            <div>
-              <p className="crumb">Accounts Payable</p>
-              <h1 className="intake-title">Invoice Intake</h1>
-            </div>
-            <div className="intake-controls">
-              <div className="seg" role="radiogroup" aria-label="Run mode">
-                <button type="button" role="radio" aria-checked="true" className="seg-item">
-                  Rehearsal
-                  <span className="seg-pill" />
-                </button>
-                <button type="button" role="radio" aria-checked="false" className="seg-item" disabled title="Connect a model key in Settings to run live">
-                  Live
-                </button>
-              </div>
-              <AnimatePresence>
-                {!idle ? (
-                  <motion.button
-                    type="button"
-                    className="btn"
-                    onClick={() => {
-                      reset();
-                      setThumbFrom(null);
-                    }}
-                    initial={{ opacity: 0, x: 8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 8 }}
-                    transition={{ duration: 0.35, ease: EXPO }}
-                  >
-                    <RotateCcw size={14} aria-hidden="true" />
-                    New run
-                  </motion.button>
-                ) : null}
-              </AnimatePresence>
-            </div>
-          </header>
-
           <LayoutGroup>
             <AnimatePresence mode="popLayout" initial={false}>
               {idle ? (
@@ -187,6 +191,7 @@ export function InvoiceIntake() {
       </div>
 
       <DraftRail state={state} onDecide={decide} />
+      </div>
     </div>
   );
 }
