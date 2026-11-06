@@ -378,9 +378,14 @@ ul {
   min-height: 0;
   flex-direction: column;
   gap: 1px;
-  /* The guide line and active marker sit inside the clip so the accordion can't hide them */
-  margin: 0 0 0 8px;
-  padding: 0 2px 0 7px;
+  /*
+   * Geometry, from the rail's content edge: parent icon centered at 16px, parent label at 34px.
+   * Guide line at 16px under the icon; sub items start 10px past it (26px) so the card never
+   * touches the line; 8px of padding puts their text at 34px, aligned with the parent label.
+   * The line and marker sit inside the clip so the accordion can't hide them.
+   */
+  margin: 0;
+  padding: 0 2px 0 0;
   overflow: hidden;
 }
 
@@ -393,16 +398,16 @@ ul {
   position: absolute;
   top: 4px;
   bottom: 8px;
-  left: 7px;
+  left: 16px;
   width: 1px;
   background: var(--line-strong);
 }
 
 .nav-subitem {
-  width: calc(100% - 6px);
+  width: calc(100% - 26px);
   height: 30px;
-  margin-left: 6px;
-  padding-left: 13px;
+  margin-left: 26px;
+  padding-left: 8px;
   font-size: 13.5px;
 }
 
@@ -411,7 +416,7 @@ ul {
   position: absolute;
   top: 7px;
   bottom: 7px;
-  left: -6.5px;
+  left: -10.5px;
   width: 2px;
   border-radius: 2px;
   background: var(--accent);
