@@ -437,6 +437,17 @@
   display: block;
 }
 
+/* Tilt the paper inside the thumb slot; the slot itself carries the shared-layout transform */
+.recent-thumb .inv-thumb {
+  transition: transform 350ms var(--ease-out-expo), box-shadow 350ms var(--ease-out-expo);
+}
+
+.recent:hover .recent-thumb .inv-thumb,
+.recent:focus-visible .recent-thumb .inv-thumb {
+  transform: translateY(-2px) rotate(-4deg);
+  box-shadow: 0 0 0 1px rgb(19 18 16 / 0.1), 0 6px 12px -4px rgb(19 18 16 / 0.22);
+}
+
 .recent-text {
   display: flex;
   min-width: 0;
