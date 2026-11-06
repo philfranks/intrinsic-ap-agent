@@ -339,9 +339,8 @@ ul {
   height: 18px;
   flex: none;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 0 0 1px var(--line), 0 1px 2px rgb(19 18 16 / 0.06);
-  color: var(--il-carbon);
+  background: var(--accent);
+  color: #fff;
   font-family: var(--font-mono-ui);
   font-size: 10px;
   font-weight: 600;
@@ -387,13 +386,15 @@ ul {
    * touches the line; 8px of padding puts their text at 34px, aligned with the parent label.
    * The line and marker sit inside the clip so the accordion can't hide them.
    */
-  margin: 0;
+  /* 2px of room on the right (offset by the negative margin) so the active card's outline isn't clipped */
+  margin: 0 -2px 0 0;
   padding: 0 2px 0 0;
   overflow: hidden;
 }
 
 .nav-sub-wrap[data-open="true"] > .nav-sub {
-  padding: 2px 0 6px;
+  padding-top: 2px;
+  padding-bottom: 6px;
 }
 
 .nav-sub::before {
