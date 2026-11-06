@@ -190,6 +190,10 @@ ul {
   transition: background-color 150ms var(--ease), color 150ms var(--ease);
 }
 
+.icon-btn[hidden] {
+  display: none;
+}
+
 .icon-btn:hover {
   background: var(--hover);
   color: var(--ink);
