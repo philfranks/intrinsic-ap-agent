@@ -333,16 +333,19 @@ ul {
 }
 
 .nav-badge {
-  min-width: 18px;
-  padding: 0 5px;
-  border-radius: 999px;
-  background: var(--accent);
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--line), 0 1px 2px rgb(19 18 16 / 0.06);
   color: var(--il-carbon);
   font-family: var(--font-mono-ui);
   font-size: 10px;
   font-weight: 600;
-  line-height: 16px;
-  text-align: center;
+  line-height: 1;
 }
 
 .nav-group {

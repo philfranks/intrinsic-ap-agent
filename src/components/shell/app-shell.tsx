@@ -11,13 +11,13 @@ import {
   LogOut,
   Moon,
   PanelLeft,
-  Receipt,
   Search,
   Settings,
   SlidersHorizontal,
   Sun,
 } from "lucide-react";
 import { MARK } from "@/lib/brand/mark";
+import { ReceiptLine } from "@/components/icons/receipt-line";
 import { LOGOTYPE_H, SECONDARY_GAP } from "@/lib/brand/logotype";
 import { useTheme } from "@/lib/use-theme";
 import { InvoiceIntake } from "@/components/ap/invoice-intake";
@@ -46,7 +46,7 @@ const AGENTS: Agent[] = [
   {
     id: "ap",
     label: "Accounts Payable",
-    icon: Receipt,
+    icon: ReceiptLine,
     items: [
       { id: "intake", label: "Intake" },
       { id: "invoices", label: "Invoices" },
