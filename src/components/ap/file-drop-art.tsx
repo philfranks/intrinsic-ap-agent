@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "motion/react";
 /*
  * File-drop illustration. A document with a downward arrow fades in from above, settles,
  * then drops into the orange tray and slips out of sight; the next one loads in. Loops.
+ * The document is clipped at the tray's bottom line, so it reads as sliding down into it.
  * When a file is dragged over the window ("armed"), the document hovers over the tray
  * and the tray lights up, waiting for the real file.
  *
@@ -53,7 +54,7 @@ export function FileDropArt({ armed, size = 264 }: { armed: boolean; size?: numb
         </linearGradient>
         {/* The document disappears as it passes the tray floor */}
         <clipPath id="drop-doc-clip">
-          <rect x="0" y="-80" width="252" height="226" />
+          <rect x="0" y="-80" width="252" height="233.3" />
         </clipPath>
       </defs>
 
@@ -88,7 +89,7 @@ export function FileDropArt({ armed, size = 264 }: { armed: boolean; size?: numb
               ? { y: [-6, 2, -6], opacity: 1 }
               : still
                 ? { y: 0, opacity: 1 }
-                : { y: [-40, 0, 0, 116, 116], opacity: [0, 1, 1, 1, 0] }
+                : { y: [-40, 0, 0, 124, 124], opacity: [0, 1, 1, 1, 0] }
           }
           transition={
             armed
