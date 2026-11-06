@@ -753,7 +753,7 @@
 
 .chip-status[data-state="running"] {
   padding-left: 7px;
-  background: var(--hover);
+  background: var(--bg);
   color: var(--ink-2);
 }
 
@@ -830,17 +830,17 @@
 
 .segbar span[data-status="running"]::after {
   transform: scaleX(1);
-  background: linear-gradient(90deg, transparent, var(--il-orange), transparent);
-  background-size: 200% 100%;
-  animation: seg-run 1.1s linear infinite;
+  background: var(--muted);
+  animation: seg-pulse 1.4s var(--ease) infinite;
 }
 
-@keyframes seg-run {
-  from {
-    background-position: 150% 0;
+@keyframes seg-pulse {
+  0%,
+  100% {
+    opacity: 0.18;
   }
-  to {
-    background-position: -50% 0;
+  50% {
+    opacity: 0.55;
   }
 }
 
