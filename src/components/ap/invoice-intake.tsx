@@ -1,19 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, LayoutGroup, motion } from "motion/react";
-import { FileText, RotateCcw, Upload } from "lucide-react";
-import { LANGFUSE, NCTL, SCENARIOS } from "@/lib/ap/scenarios";
-import type { Scenario } from "@/lib/ap/types";
-import { fmtSize, useInvoiceRun, type RunFile, type RunState } from "@/lib/ap/use-run";
-import { SignalMark } from "./signal-mark";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { ChevronRight, FileText, RotateCcw, Upload } from "lucide-react";
+import { LANGFUSE, NCTL } from "@/lib/ap/scenarios";
+import type { DraftStatus, Scenario } from "@/lib/ap/types";
+import { completedRun, fmtSize, useInvoiceRun, type RunFile, type RunState } from "@/lib/ap/use-run";
+import { FileDropArt } from "./file-drop-art";
 import { InvoiceThumb } from "./invoice-thumb";
 import { StepTimeline } from "./step-timeline";
 import { DraftRail } from "./draft-rail";
 import { Topbar } from "@/components/shell/topbar";
 
 const EXPO = [0.16, 1, 0.3, 1] as const;
-const SAMPLE_MIME = "application/x-intrinsic-sample";
 
 async function sha256(file: File) {
   try {
@@ -24,26 +23,59 @@ async function sha256(file: File) {
   }
 }
 
-/** Rehearsal mode: a dropped file plays the scenario it most resembles. */
+/** Until the agent is live, a dropped file plays the scenario it most resembles. */
 function scenarioForFile(name: string): Scenario {
   return /nctl|118503|north.?coast|lab/i.test(name) ? NCTL : LANGFUSE;
 }
 
+/** Recently processed files. Opening one shows its finished run. */
+type Recent = {
+  scenario: Scenario;
+  when: string;
+  decisions: { to: DraftStatus; text: string; afterMs: number }[];
+};
+
+const RECENTS: Recent[] = [
+  { scenario: LANGFUSE, when: "today, 1:12 PM", decisions: [] },
+  {
+    scenario: NCTL,
+    when: "today, 11:48 AM",
+    decisions: [
+      { to: "released", text: "AP resolved the hold and released the draft for approval.", afterMs: 2_400_000 },
+      { to: "approved", text: `Approved by AP reviewer. Payment scheduled for ${NCTL.paymentDate}.`, afterMs: 3_100_000 },
+    ],
+  },
+];
+
+const RECENT_STATUS: Partial<Record<DraftStatus, { label: (s: Scenario) => string; tone: string }>> = {
+  hold: { label: (s) => `On hold · ${s.holdReasons.length}`, tone: "warn" },
+  released: { label: () => "Awaiting approval", tone: "info" },
+  approved: { label: () => "Approved", tone: "ok" },
+  rejected: { label: () => "Rejected", tone: "muted" },
+};
+
+const WIDE = "(min-width: 1280px)";
+function useRailWidth() {
+  const wide = useSyncExternalStore(
+    (cb) => {
+      const m = window.matchMedia(WIDE);
+      m.addEventListener("change", cb);
+      return () => m.removeEventListener("change", cb);
+    },
+    () => window.matchMedia(WIDE).matches,
+    () => true,
+  );
+  return wide ? 384 : 336;
+}
+
 export function InvoiceIntake() {
-  const { state, run, reset, decide } = useInvoiceRun();
+  const { state, run, open, reset, decide } = useInvoiceRun();
   const [armed, setArmed] = useState(false);
   const [thumbFrom, setThumbFrom] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLInputElement>(null);
   const depth = useRef(0);
-
-  const startSample = useCallback(
-    (s: Scenario) => {
-      setThumbFrom(s.id);
-      scrollRef.current?.scrollTo({ top: 0 });
-      run(s, { ...s.file, source: "sample" });
-    },
-    [run],
-  );
+  const railW = useRailWidth();
 
   const startFile = useCallback(
     async (file: File) => {
@@ -56,9 +88,18 @@ export function InvoiceIntake() {
     [run],
   );
 
-  // Light the drop zone whenever a file is dragged anywhere over the window.
+  const openRecent = useCallback(
+    (r: Recent) => {
+      setThumbFrom(r.scenario.id);
+      scrollRef.current?.scrollTo({ top: 0 });
+      open(completedRun(r.scenario, { ...r.scenario.file, source: "recent", when: r.when }, r.decisions));
+    },
+    [open],
+  );
+
+  // The whole workspace is the drop target: dragging a file anywhere over the window arms it.
   useEffect(() => {
-    const isFileDrag = (e: DragEvent) => !!e.dataTransfer && [...e.dataTransfer.types].some((t) => t === "Files" || t === SAMPLE_MIME);
+    const isFileDrag = (e: DragEvent) => !!e.dataTransfer && [...e.dataTransfer.types].includes("Files");
     const enter = (e: DragEvent) => {
       if (!isFileDrag(e)) return;
       depth.current++;
@@ -77,12 +118,6 @@ export function InvoiceIntake() {
       setArmed(false);
       if (!isFileDrag(e)) return;
       e.preventDefault();
-      const sample = e.dataTransfer?.getData(SAMPLE_MIME);
-      if (sample) {
-        const s = SCENARIOS.find((x) => x.id === sample);
-        if (s) startSample(s);
-        return;
-      }
       const file = e.dataTransfer?.files?.[0];
       if (file) void startFile(file);
     };
@@ -96,7 +131,7 @@ export function InvoiceIntake() {
       window.removeEventListener("dragover", over);
       window.removeEventListener("drop", drop);
     };
-  }, [startFile, startSample]);
+  }, [startFile]);
 
   const idle = state.phase === "idle";
 
@@ -105,143 +140,98 @@ export function InvoiceIntake() {
       <Topbar
         crumbs={[
           { label: "Accounts Payable" },
-          { label: "Invoice Intake" },
+          { label: "Invoice Intake", onClick: idle ? undefined : () => reset() },
           ...(state.file ? [{ label: state.file.name, mono: true }] : []),
         ]}
         actions={
-          <>
-            <AnimatePresence>
-              {!idle ? (
-                <motion.button
-                  type="button"
-                  className="btn btn-sm"
-                  onClick={() => {
-                    reset();
-                    setThumbFrom(null);
-                  }}
-                  initial={{ opacity: 0, x: 8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 8 }}
-                  transition={{ duration: 0.35, ease: EXPO }}
-                >
-                  <RotateCcw size={13} aria-hidden="true" />
-                  New run
-                </motion.button>
-              ) : null}
-            </AnimatePresence>
-            <div className="seg seg-sm" role="radiogroup" aria-label="Run mode">
-              <button type="button" role="radio" aria-checked="true" className="seg-item">
-                Rehearsal
-                <span className="seg-pill" />
-              </button>
-              <button type="button" role="radio" aria-checked="false" className="seg-item" disabled title="Connect a model key in Settings to run live">
-                Live
-              </button>
-            </div>
-          </>
+          <AnimatePresence>
+            {!idle ? (
+              <motion.button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => {
+                  reset();
+                  setThumbFrom(null);
+                }}
+                initial={{ opacity: 0, x: 8 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 8 }}
+                transition={{ duration: 0.35, ease: EXPO }}
+              >
+                <RotateCcw size={13} aria-hidden="true" />
+                New run
+              </motion.button>
+            ) : null}
+          </AnimatePresence>
         }
       />
+
       <div className="intake-body">
-      <div className="intake-main" ref={scrollRef}>
-        <div className="intake-inner">
-          <LayoutGroup>
-            <AnimatePresence mode="popLayout" initial={false}>
-              {idle ? (
-                <motion.div
-                  key="hero"
-                  className="hero"
-                  exit={{ opacity: 0, y: -12, transition: { duration: 0.25 } }}
-                >
-                  <p className="eyebrow">AP agent · Certified Cultivators → Acumatica</p>
-                  <h2 className="hero-title">
-                    <WordReveal text="Drop an invoice. Watch it get coded, checked, and drafted." />
-                  </h2>
-                  <p className="hero-sub">
+        <div className="intake-main" ref={scrollRef}>
+          <AnimatePresence mode="wait">
+            {idle ? (
+              <motion.div
+                key="idle"
+                className="idle"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.3, ease: EXPO }}
+              >
+                <div className="idle-center">
+                  <FileDropArt armed={armed} />
+                  <h1 className="idle-title">Drop an invoice file here</h1>
+                  <p className="idle-sub">
+                    or{" "}
+                    <button type="button" className="link-button link-accent" onClick={() => input.current?.click()}>
+                      browse your files
+                    </button>
+                  </p>
+                  <p className="idle-body">
                     The agent reads the document, codes it against your chart of accounts, and drafts the bill. Nothing posts until a person approves it.
                   </p>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-
-            {idle ? (
-              <DropZone armed={armed} onFile={startFile} />
+                </div>
+                <Recents onOpen={openRecent} />
+              </motion.div>
             ) : (
-              <FileChip state={state} thumbFrom={thumbFrom} />
-            )}
-
-            <AnimatePresence mode="popLayout" initial={false}>
-              {idle ? (
-                <motion.div key="below" exit={{ opacity: 0, transition: { duration: 0.2 } }}>
-                  <Samples onPick={startSample} />
-                  <StepsPreview />
-                </motion.div>
-              ) : (
+              <motion.div
+                key="run"
+                className="intake-inner"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: EXPO }}
+              >
+                <FileChip state={state} thumbFrom={thumbFrom} />
                 <motion.div
-                  key="timeline"
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, ease: EXPO, delay: 0.25 }}
+                  transition={{ duration: 0.6, ease: EXPO, delay: 0.2 }}
                 >
-                  <StepTimeline state={state} scrollRoot={scrollRef} />
+                  <StepTimeline key={state.file?.name} state={state} scrollRoot={scrollRef} follow={state.file?.source !== "recent"} />
                 </motion.div>
-              )}
-            </AnimatePresence>
-          </LayoutGroup>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
+
+        <AnimatePresence initial={false}>
+          {!idle ? (
+            <motion.div
+              key="rail"
+              className="rail-slot"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: railW, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.6, ease: EXPO }}
+            >
+              <DraftRail state={state} onDecide={decide} />
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+
+        <div className="drop-veil" aria-hidden="true" />
       </div>
 
-      <DraftRail state={state} onDecide={decide} />
-      </div>
-    </div>
-  );
-}
-
-function WordReveal({ text }: { text: string }) {
-  return (
-    <>
-      {text.split(" ").map((w, i) => (
-        <motion.span
-          key={i}
-          className="word"
-          initial={{ opacity: 0, y: "0.35em", filter: "blur(4px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          transition={{ duration: 0.7, ease: EXPO, delay: 0.05 + i * 0.045 }}
-        >
-          {w}{" "}
-        </motion.span>
-      ))}
-    </>
-  );
-}
-
-function DropZone({ armed, onFile }: { armed: boolean; onFile: (f: File) => void }) {
-  const input = useRef<HTMLInputElement>(null);
-  return (
-    <motion.div
-      layoutId="intake-card"
-      className="dropzone"
-      data-armed={armed ? "true" : undefined}
-      transition={{ duration: 0.7, ease: EXPO }}
-      style={{ borderRadius: 16 }}
-    >
-      <span className="dz-grid" aria-hidden="true" />
-      <span className="dz-corner dz-tl" aria-hidden="true" />
-      <span className="dz-corner dz-tr" aria-hidden="true" />
-      <span className="dz-corner dz-bl" aria-hidden="true" />
-      <span className="dz-corner dz-br" aria-hidden="true" />
-      <motion.div className="dz-inner" exit={{ opacity: 0 }}>
-        <SignalMark armed={armed} size={124} />
-        <div className="dz-copy">
-          <p className="dz-title">{armed ? "Release to start the run" : "Drop a PDF invoice here"}</p>
-          <p className="dz-sub">
-            or{" "}
-            <button type="button" className="link-button link-accent" onClick={() => input.current?.click()}>
-              browse your files
-            </button>
-          </p>
-        </div>
-        <p className="dz-meta">PDF, PNG or JPG · read in your browser · sent only to the model</p>
-      </motion.div>
       <input
         ref={input}
         type="file"
@@ -249,69 +239,47 @@ function DropZone({ armed, onFile }: { armed: boolean; onFile: (f: File) => void
         hidden
         onChange={(e) => {
           const f = e.target.files?.[0];
-          if (f) onFile(f);
+          if (f) void startFile(f);
           e.target.value = "";
         }}
       />
-    </motion.div>
+    </div>
   );
 }
 
-function Samples({ onPick }: { onPick: (s: Scenario) => void }) {
+function Recents({ onOpen }: { onOpen: (r: Recent) => void }) {
   return (
-    <section className="samples">
-      <p className="eyebrow">Or try a sample · drag it in, or click</p>
-      <div className="sample-grid">
-        {SCENARIOS.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            className="sample"
-            draggable
-            onDragStart={(e) => {
-              e.dataTransfer.setData(SAMPLE_MIME, s.id);
-              e.dataTransfer.effectAllowed = "copy";
-            }}
-            onClick={() => onPick(s)}
-          >
-            <motion.span layoutId={`thumb-${s.id}`} className="sample-thumb" transition={{ duration: 0.7, ease: EXPO }}>
-              <InvoiceThumb doc={s.doc} width={64} />
-            </motion.span>
-            <span className="sample-text">
-              <span className="sample-vendor">{s.vendor}</span>
-              <span className="sample-meta">
-                {s.file.name} · {fmtSize(s.file.size)}
-              </span>
-              <span className="sample-tags">
-                <span className="chip chip-mono">${s.amount.toFixed(2)}</span>
-                <span className="chip" data-tone={s.holdReasons.length > 3 ? "block" : "warn"}>
-                  {s.holdReasons.length > 3 ? "Messy: new vendor, wrong bill-to" : "Known vendor, one policy gap"}
+    <section className="recents" aria-labelledby="recents-title">
+      <h2 id="recents-title" className="eyebrow">
+        Recent
+      </h2>
+      <ul className="recent-list">
+        {RECENTS.map((r) => {
+          const s = r.scenario;
+          const final = r.decisions.at(-1)?.to ?? "hold";
+          const status = RECENT_STATUS[final]!;
+          return (
+            <li key={s.id}>
+              <button type="button" className="recent" onClick={() => onOpen(r)}>
+                <motion.span layoutId={`thumb-${s.id}`} className="recent-thumb" transition={{ duration: 0.7, ease: EXPO }}>
+                  <InvoiceThumb doc={s.doc} width={34} />
+                </motion.span>
+                <span className="recent-text">
+                  <span className="recent-vendor">{s.vendor}</span>
+                  <span className="recent-file">{s.file.name}</span>
                 </span>
-              </span>
-            </span>
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function StepsPreview() {
-  return (
-    <section className="preview">
-      <p className="eyebrow">What the agent does · 8 steps</p>
-      <ol className="preview-grid">
-        {LANGFUSE.steps.map((s, i) => (
-          <li key={s.id}>
-            <span className="preview-num">{String(i + 1).padStart(2, "0")}</span>
-            <span className="preview-title">{s.title}</span>
-            <span className="tl-tag" data-kind={s.kind}>
-              <span className="tl-tag-dot" />
-              {s.kind === "model" ? "Claude" : "rules"}
-            </span>
-          </li>
-        ))}
-      </ol>
+                <span className="recent-amt">${s.amount.toFixed(2)}</span>
+                <span className="recent-status" data-tone={status.tone}>
+                  <span className="recent-dot" />
+                  {status.label(s)}
+                </span>
+                <span className="recent-when">{r.when.replace("today, ", "")}</span>
+                <ChevronRight className="recent-chev" size={15} aria-hidden="true" />
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }
@@ -372,7 +340,7 @@ function FileChip({ state, thumbFrom }: { state: RunState; thumbFrom: string | n
           <span>{fmtSize(f.size)}</span>
           <span>sha256 {f.sha.slice(0, 12)}…</span>
           <span>
-            <Upload size={11} aria-hidden="true" /> {f.source === "upload" ? "Dropped by you" : "Sample"} · {s.intake}
+            <Upload size={11} aria-hidden="true" /> {f.source === "upload" ? "Dropped by you" : `Received ${f.when}`} · {s.intake}
           </span>
         </div>
         <div className="segbar" aria-hidden="true">

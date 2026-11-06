@@ -21,7 +21,7 @@ export type StepState = {
 
 export type DraftLine = LineDef & { coding?: LineCoding };
 
-export type RunFile = { name: string; pages: number; size: number; sha: string; source: "sample" | "upload" };
+export type RunFile = { name: string; pages: number; size: number; sha: string; source: "upload" | "recent"; when?: string };
 
 export type LogEntry = { at: number; text: string; human?: boolean };
 
@@ -71,6 +71,7 @@ type Action =
   | { type: "log"; text: string; at: number; human?: boolean }
   | { type: "complete"; at: number }
   | { type: "decide"; to: DraftStatus; text: string; at: number }
+  | { type: "load"; state: RunState }
   | { type: "reset" };
 
 function patchStep(state: RunState, id: string, patch: Partial<StepState>): RunState {
@@ -160,6 +161,8 @@ function reducer(state: RunState, action: Action): RunState {
         stats: { ...state.stats, humanTouches: state.stats.humanTouches + 1 },
         log: [{ at: action.at, text: action.text, human: true }, ...state.log],
       };
+    case "load":
+      return action.state;
     case "reset":
       return initial;
   }
@@ -179,6 +182,86 @@ function fillTemplate(text: string, file: RunFile) {
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Typical duration for a step, used when opening a finished run from history. */
+function typicalMs(step: StepDef) {
+  if (step.kind === "model") return (step.streamMs ?? 3000) + 900;
+  return (step.workMs ?? 300) + (step.items?.length ?? 0) * 160 + (step.table?.rows.length ?? step.candidates?.length ?? 0) * 110 + 500;
+}
+
+/** The end state of a run, built without replaying it, so a recent file opens straight to its details. */
+export function completedRun(
+  scenario: Scenario,
+  file: RunFile,
+  decisions: { to: DraftStatus; text: string; afterMs: number }[] = [],
+): RunState {
+  const t0 = 0;
+  let t = 700;
+  const steps: Record<string, StepState> = {};
+  let fields: RunState["fields"] = {};
+  let lines: DraftLine[] = [];
+  let totals: RunState["totals"] = null;
+  const stats = { modelCalls: 0, tokens: 0, spend: 0, humanTouches: 0 };
+  const log: LogEntry[] = [{ at: t0, text: scenario.steps[0].log }];
+
+  for (const step of scenario.steps) {
+    const ms = typicalMs(step);
+    const items = (step.items ?? []).map((i) => ({ ...i, text: fillTemplate(i.text, file) }));
+    steps[step.id] = {
+      status: items.some((i) => i.tone === "warn" || i.tone === "block") ? "flagged" : "done",
+      startedAt: t,
+      ms,
+      stream: step.stream ?? "",
+      streamDone: true,
+      revealed: step.table?.rows.length ?? step.candidates?.length ?? 0,
+      items,
+      showProse: !!step.prose,
+      showCard: !!step.draftCard,
+    };
+    for (const e of step.effects ?? []) {
+      if ("field" in e) fields = { ...fields, [e.field]: e.value };
+      else if ("line" in e) {
+        lines = [...lines];
+        lines[e.line] = { ...e.def, coding: lines[e.line]?.coding };
+      } else if ("code" in e) {
+        lines = [...lines];
+        lines[e.code] = { ...lines[e.code], coding: e.coding };
+      } else totals = e.totals;
+    }
+    if (step.kind === "model") {
+      stats.modelCalls++;
+      stats.tokens += step.tokens ?? 0;
+      stats.spend += step.spend ?? 0;
+    }
+    t += ms;
+    if (step.id !== scenario.steps[0].id) log.unshift({ at: t, text: step.log });
+    t += 260;
+  }
+
+  const endedAt = t;
+  let draft: DraftStatus = "hold";
+  for (const d of decisions) {
+    draft = d.to;
+    stats.humanTouches++;
+    log.unshift({ at: endedAt + d.afterMs, text: d.text, human: true });
+  }
+
+  return {
+    phase: "complete",
+    scenario,
+    file,
+    startedAt: t0,
+    endedAt,
+    activeStep: null,
+    steps,
+    fields,
+    lines,
+    totals,
+    draft,
+    stats,
+    log,
+  };
+}
 
 export function useInvoiceRun() {
   const [state, dispatch] = useReducer(reducer, initial);
@@ -267,6 +350,11 @@ export function useInvoiceRun() {
     }
   }, []);
 
+  const open = useCallback((completed: RunState) => {
+    token.current++;
+    dispatch({ type: "load", state: completed });
+  }, []);
+
   const reset = useCallback(() => {
     token.current++;
     dispatch({ type: "reset" });
@@ -278,7 +366,7 @@ export function useInvoiceRun() {
 
   useEffect(() => () => void token.current++, []);
 
-  return { state, run, reset, decide };
+  return { state, run, open, reset, decide };
 }
 
 /** The current time (performance.now), refreshed on an interval while `active`, for live timers. */

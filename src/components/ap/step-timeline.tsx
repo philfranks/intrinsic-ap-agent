@@ -10,7 +10,15 @@ const EXPO = [0.16, 1, 0.3, 1] as const;
 
 const fmtMs = (ms: number) => `${Math.round(ms).toLocaleString()} ms`;
 
-export function StepTimeline({ state, scrollRoot }: { state: RunState; scrollRoot: React.RefObject<HTMLElement | null> }) {
+export function StepTimeline({
+  state,
+  scrollRoot,
+  follow = true,
+}: {
+  state: RunState;
+  scrollRoot: React.RefObject<HTMLElement | null>;
+  follow?: boolean;
+}) {
   const scenario = state.scenario!;
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const refs = useRef<Record<string, HTMLLIElement | null>>({});
@@ -19,11 +27,12 @@ export function StepTimeline({ state, scrollRoot }: { state: RunState; scrollRoo
   // Follow the running step: keep its bottom edge in view as it grows (streams, items, cards).
   useEffect(() => {
     const root = scrollRoot.current;
+    if (!follow) return;
     const id = active ?? (state.phase === "complete" ? scenario.steps[scenario.steps.length - 1].id : null);
     const el = id ? refs.current[id] : null;
     if (!root || !el) return;
     let frame = 0;
-    const follow = () => {
+    const stick = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         const r = el.getBoundingClientRect();
@@ -35,8 +44,8 @@ export function StepTimeline({ state, scrollRoot }: { state: RunState; scrollRoo
         if (by > 2) root.scrollBy({ top: by, behavior: "smooth" });
       });
     };
-    follow();
-    const ro = new ResizeObserver(follow);
+    stick();
+    const ro = new ResizeObserver(stick);
     ro.observe(el);
     const stop = state.phase === "complete" ? setTimeout(() => ro.disconnect(), 1500) : undefined;
     return () => {
@@ -44,7 +53,7 @@ export function StepTimeline({ state, scrollRoot }: { state: RunState; scrollRoo
       cancelAnimationFrame(frame);
       clearTimeout(stop);
     };
-  }, [active, state.phase, scenario, scrollRoot]);
+  }, [active, state.phase, scenario, scrollRoot, follow]);
 
   return (
     <ol className="tl">

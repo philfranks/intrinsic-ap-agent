@@ -311,7 +311,7 @@ function Approval({
 
 function Stats({ state }: { state: RunState }) {
   const now = useTicker(state.phase === "running", 100);
-  const elapsed = state.startedAt ? Math.max(0, (state.endedAt ?? (state.phase === "running" ? now : state.startedAt)) - state.startedAt) / 1000 : 0;
+  const elapsed = state.startedAt != null ? Math.max(0, (state.endedAt ?? (state.phase === "running" ? now : state.startedAt)) - state.startedAt) / 1000 : 0;
   const items: [string, string][] = [
     ["Elapsed", `${elapsed.toFixed(1)}s`],
     ["Model calls", String(state.stats.modelCalls)],
