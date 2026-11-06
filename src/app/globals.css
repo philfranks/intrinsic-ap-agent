@@ -171,12 +171,8 @@ ul {
   flex: none;
 }
 
-.brand-word {
-  font-family: var(--font-display-ui);
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
+.brand {
+  padding: 4px 0;
 }
 
 .icon-btn {
@@ -296,17 +292,30 @@ ul {
 }
 
 .nav-parent {
+  color: var(--ink-2);
+}
+
+.nav-parent[data-active="true"] {
   color: var(--ink);
   font-weight: 500;
 }
 
-.nav-item[data-soon="true"] {
-  color: var(--faint);
-  cursor: default;
+.nav-parent[data-active="true"] .nav-icon {
+  color: var(--ink);
 }
 
-.nav-item[data-soon="true"]:hover {
-  background: none;
+.nav-chev {
+  flex: none;
+  color: var(--faint);
+  transition: transform 250ms var(--ease-out-expo), color 150ms var(--ease);
+}
+
+.nav-chev[data-open="true"] {
+  transform: rotate(90deg);
+}
+
+.nav-parent:hover .nav-chev {
+  color: var(--muted);
 }
 
 .nav-icon {
@@ -336,14 +345,6 @@ ul {
   text-align: center;
 }
 
-.nav-soon {
-  color: var(--faint);
-  font-family: var(--font-mono-ui);
-  font-size: 9.5px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
 .nav-group {
   margin-top: 16px;
 }
@@ -360,36 +361,57 @@ ul {
   white-space: nowrap;
 }
 
+/* Accordion: rows animate open and closed */
+.nav-sub-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 300ms var(--ease-out-expo);
+}
+
+.nav-sub-wrap[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+
 .nav-sub {
   position: relative;
   display: flex;
+  min-height: 0;
   flex-direction: column;
   gap: 1px;
-  margin: 2px 0 4px 16px;
-  padding-left: 10px;
+  /* The guide line and active marker sit inside the clip so the accordion can't hide them */
+  margin: 0 0 0 8px;
+  padding: 0 2px 0 7px;
+  overflow: hidden;
+}
+
+.nav-sub-wrap[data-open="true"] > .nav-sub {
+  padding: 2px 0 6px;
 }
 
 .nav-sub::before {
   content: "";
   position: absolute;
-  top: 2px;
-  bottom: 2px;
-  left: 0;
+  top: 4px;
+  bottom: 8px;
+  left: 7px;
   width: 1px;
   background: var(--line-strong);
 }
 
-.nav-sub .nav-item {
+.nav-subitem {
+  width: calc(100% - 6px);
   height: 30px;
+  margin-left: 6px;
+  padding-left: 13px;
   font-size: 13.5px;
 }
 
-.nav-sub .nav-item[aria-current="page"]::before {
+.nav-subitem[aria-current="page"]::before {
   content: "";
   position: absolute;
   top: 7px;
   bottom: 7px;
-  left: -11px;
+  left: -6.5px;
   width: 2px;
   border-radius: 2px;
   background: var(--accent);
@@ -518,15 +540,15 @@ ul {
   background: var(--hover);
 }
 
-/* Collapsed rail: icons only, labels hidden, tooltips on hover */
-.app[data-rail="collapsed"] .brand-word,
+/* Collapsed rail: top-level icons only. Agent pages live in a flyout. */
 .app[data-rail="collapsed"] .ws-name,
 .app[data-rail="collapsed"] .ws-chev,
 .app[data-rail="collapsed"] .nav-label,
 .app[data-rail="collapsed"] .nav-badge,
-.app[data-rail="collapsed"] .nav-soon,
+.app[data-rail="collapsed"] .nav-chev,
 .app[data-rail="collapsed"] .kbd,
 .app[data-rail="collapsed"] .nav-group-label,
+.app[data-rail="collapsed"] .nav-sub-wrap,
 .app[data-rail="collapsed"] .me-text {
   display: none;
 }
@@ -565,39 +587,111 @@ ul {
   padding: 0;
 }
 
-.app[data-rail="collapsed"] .nav-sub {
-  margin-left: 0;
-  padding-left: 0;
-}
-
-.app[data-rail="collapsed"] .nav-sub::before,
-.app[data-rail="collapsed"] .nav-sub .nav-item[aria-current="page"]::before {
-  display: none;
-}
-
 .app[data-rail="collapsed"] .nav-group {
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid var(--line);
 }
 
+.app[data-rail="collapsed"] .nav-parent[data-active="true"] {
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.app[data-rail="collapsed"] .nav-parent[data-active="true"] .nav-icon {
+  color: var(--accent-text);
+}
+
+.app[data-rail="collapsed"] .nav-item[aria-current="page"]::before,
+.app[data-rail="collapsed"] .nav-parent[data-active="true"]::before {
+  content: "";
+  position: absolute;
+  top: 9px;
+  bottom: 9px;
+  left: -10px;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--accent);
+}
+
 .app[data-rail="collapsed"] .me {
   justify-content: center;
 }
 
-.app[data-rail="collapsed"] .nav-item[data-tip]:hover::after {
-  content: attr(data-tip);
-  position: absolute;
-  left: calc(100% + 10px);
-  z-index: 60;
+/* Flyout beside the collapsed rail: an agent's pages, or a label for any other icon */
+.flyout {
+  position: fixed;
+  left: calc(var(--rail-w, 60px) + 6px);
+  z-index: 90;
+}
+
+.flyout[data-kind="tip"] {
+  margin-top: 4px;
   padding: 4px 8px;
   border-radius: 6px;
   background: var(--ink);
   color: var(--bg);
   font-size: 12px;
   font-weight: 500;
-  white-space: nowrap;
+  line-height: 16px;
+  white-space: pre;
   pointer-events: none;
+}
+
+.flyout[data-kind="menu"] {
+  display: flex;
+  min-width: 196px;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: -6px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--shadow-pop);
+}
+
+.flyout-title {
+  padding: 4px 8px 6px;
+  color: var(--muted);
+  font-family: var(--font-mono-ui);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.flyout-item {
+  position: relative;
+  height: 30px;
+  padding: 0 8px 0 14px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-2);
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.flyout-item:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.flyout-item[aria-current="page"] {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.flyout-item[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 5px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--accent);
 }
 
 .workspace-main {

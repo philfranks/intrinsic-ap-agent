@@ -1,53 +1,113 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import {
-  BookOpen,
+  ChevronRight,
   ChevronsUpDown,
-  FileInput,
-  History,
   Home,
   Inbox,
+  Layers,
   LogOut,
   Moon,
   PanelLeft,
-  Plug,
   Receipt,
-  Scale,
   Search,
   Settings,
+  SlidersHorizontal,
   Sun,
-  Truck,
-  Users,
 } from "lucide-react";
 import { MARK } from "@/lib/brand/mark";
+import { LOGOTYPE_H, SECONDARY_GAP } from "@/lib/brand/logotype";
 import { useTheme } from "@/lib/use-theme";
 import { InvoiceIntake } from "@/components/ap/invoice-intake";
 import { Topbar } from "./topbar";
 
-type Page = "home" | "inbox" | "intake" | "runs" | "vendors" | "rules" | "connections" | "knowledge" | "settings";
+const EXPO = [0.16, 1, 0.3, 1] as const;
 
-const PAGE_TITLES: Record<Page, [string, string]> = {
+type Icon = React.ComponentType<{ className?: string; size?: number }>;
+
+type Agent = { id: string; label: string; icon: Icon; items: { id: string; label: string }[] };
+
+/** Agents in the rail. Each one is a top-level item with an icon; its pages are text-only sub items. */
+const AGENTS: Agent[] = [
+  {
+    id: "foundation",
+    label: "Foundation",
+    icon: Layers,
+    items: [
+      { id: "business-map", label: "Business map" },
+      { id: "connections", label: "Connections" },
+      { id: "opportunities", label: "Opportunities" },
+      { id: "evaluations", label: "Evaluations" },
+      { id: "packages", label: "Packages" },
+    ],
+  },
+  {
+    id: "ap",
+    label: "Accounts Payable",
+    icon: Receipt,
+    items: [
+      { id: "intake", label: "Intake" },
+      { id: "invoices", label: "Invoices" },
+      { id: "settings", label: "Settings" },
+    ],
+  },
+];
+
+/** Pages outside the agents: id → [group, title]. */
+const PAGES: Record<string, [string, string]> = {
   home: ["Workspace", "Home"],
   inbox: ["Workspace", "Inbox"],
-  intake: ["Accounts Payable", "Invoice Intake"],
-  runs: ["Accounts Payable", "Runs"],
-  vendors: ["Accounts Payable", "Vendors"],
-  rules: ["Accounts Payable", "Rules & policy"],
-  connections: ["Workspace", "Connections"],
-  knowledge: ["Workspace", "Knowledge"],
-  settings: ["Workspace", "Settings"],
+  "control-panel": ["Workspace", "Control Panel"],
 };
 
-function SignalLogo({ size = 22 }: { size?: number }) {
+function titleFor(page: string): [string, string] {
+  if (PAGES[page]) return PAGES[page];
+  const [agentId, itemId] = page.split("/");
+  const agent = AGENTS.find((a) => a.id === agentId);
+  const item = agent?.items.find((i) => i.id === itemId);
+  return [agent?.label ?? "", item?.label ?? ""];
+}
+
+/* ───────── Brand ───────── */
+
+function SignalMark({ height }: { height: number }) {
   return (
-    <svg viewBox={`0 0 ${MARK.w} ${MARK.h}`} width={size} height={(size * MARK.h) / MARK.w} aria-hidden="true">
+    <svg viewBox={`0 0 ${MARK.w} ${MARK.h}`} height={height} width={(height * MARK.w) / MARK.h} aria-hidden="true">
       {MARK.paths.map((d, i) => (
         <path key={i} d={d} fill="currentColor" />
       ))}
     </svg>
   );
 }
+
+/** Secondary lockup: the Signal with the horizontal logotype, built to the brand repo's geometry. */
+function Lockup({ height }: { height: number }) {
+  const h = LOGOTYPE_H.h;
+  const s = h / MARK.h;
+  const mw = MARK.w * s;
+  const gap = h * SECONDARY_GAP;
+  const w = mw + gap + LOGOTYPE_H.w;
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} height={height} width={(height * w) / h} role="img" aria-label="Intrinsic Labs">
+      <g fill="currentColor">
+        <g transform={`scale(${s})`}>
+          {MARK.paths.map((d, i) => (
+            <path key={i} d={d} />
+          ))}
+        </g>
+        <g transform={`translate(${mw + gap} 0)`}>
+          {LOGOTYPE_H.paths.map((d, i) => (
+            <path key={i} d={d} />
+          ))}
+        </g>
+      </g>
+    </svg>
+  );
+}
+
+/* ───────── Responsive ───────── */
 
 const NARROW = "(max-width: 1023px)";
 function useNarrow() {
@@ -62,11 +122,19 @@ function useNarrow() {
   );
 }
 
+/* ───────── Shell ───────── */
+
+type Flyout = { key: string; top: number; agent?: Agent; label?: string };
+
 export function AppShell() {
-  const [page, setPage] = useState<Page>("intake");
+  const [page, setPage] = useState("ap/intake");
   const [userCollapsed, setCollapsed] = useState(false);
+  const [open, setOpen] = useState<Record<string, boolean>>({ foundation: true, ap: true });
+  const [flyout, setFlyout] = useState<Flyout | null>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const narrow = useNarrow();
   const collapsed = narrow || userCollapsed;
+  const currentAgent = page.includes("/") ? page.split("/")[0] : null;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -74,31 +142,48 @@ export function AppShell() {
         e.preventDefault();
         setCollapsed((c) => !c);
       }
+      if (e.key === "Escape") setFlyout(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const item = (id: Page, label: string, Icon: React.ComponentType<{ className?: string }>, extra?: React.ReactNode) => (
-    <button
-      type="button"
-      className="nav-item"
-      aria-current={page === id ? "page" : undefined}
-      data-tip={label}
-      onClick={() => setPage(id)}
-    >
+  // Flyouts only exist while the rail is collapsed.
+  const showFlyout = useCallback(
+    (key: string, el: HTMLElement, content: { agent?: Agent; label?: string }) => {
+      if (!collapsed) return;
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+      const r = el.getBoundingClientRect();
+      setFlyout({ key, top: r.top, ...content });
+    },
+    [collapsed],
+  );
+  const hideFlyout = useCallback(() => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => setFlyout(null), 140);
+  }, []);
+  const keepFlyout = useCallback(() => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+  }, []);
+
+  const go = (id: string) => {
+    setPage(id);
+    setFlyout(null);
+  };
+
+  const hoverProps = (key: string, label: string) => ({
+    onMouseEnter: (e: React.MouseEvent<HTMLElement>) => showFlyout(key, e.currentTarget, { label }),
+    onMouseLeave: hideFlyout,
+    onFocus: (e: React.FocusEvent<HTMLElement>) => showFlyout(key, e.currentTarget, { label }),
+    onBlur: hideFlyout,
+  });
+
+  const item = (id: string, label: string, Icon: Icon, extra?: React.ReactNode) => (
+    <button type="button" className="nav-item" aria-current={page === id ? "page" : undefined} onClick={() => go(id)} {...hoverProps(id, label)}>
       <Icon className="nav-icon" />
       <span className="nav-label">{label}</span>
       {extra}
     </button>
-  );
-
-  const soon = (label: string, Icon: React.ComponentType<{ className?: string }>) => (
-    <span className="nav-item" data-soon="true" data-tip={`${label} · soon`} aria-disabled="true">
-      <Icon className="nav-icon" />
-      <span className="nav-label">{label}</span>
-      <span className="nav-soon">Soon</span>
-    </span>
   );
 
   return (
@@ -106,8 +191,7 @@ export function AppShell() {
       <nav className="nav" aria-label="Primary">
         <div className="nav-top">
           <a className="brand" href="#" aria-label="Intrinsic Labs" onClick={(e) => e.preventDefault()}>
-            <SignalLogo />
-            <span className="brand-word">Intrinsic</span>
+            {collapsed ? <SignalMark height={18} /> : <Lockup height={15} />}
           </a>
           <button
             type="button"
@@ -115,20 +199,23 @@ export function AppShell() {
             hidden={narrow}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             title="Toggle sidebar (⌘\)"
-            onClick={() => setCollapsed((c) => !c)}
+            onClick={() => {
+              setCollapsed((c) => !c);
+              setFlyout(null);
+            }}
           >
             <PanelLeft size={16} />
           </button>
         </div>
 
-        <div className="nav-scroll">
-          <button type="button" className="workspace" aria-label="Switch workspace">
+        <div className="nav-scroll" onScroll={() => setFlyout(null)}>
+          <button type="button" className="workspace" aria-label="Switch workspace" {...hoverProps("ws", "Certified Cultivators")}>
             <span className="ws-mark">CC</span>
             <span className="ws-name">Certified Cultivators</span>
             <ChevronsUpDown size={14} className="ws-chev" />
           </button>
 
-          <button type="button" className="nav-item" data-tip="Search">
+          <button type="button" className="nav-item" {...hoverProps("search", "Search  ⌘K")}>
             <Search className="nav-icon" />
             <span className="nav-label">Search</span>
             <span className="kbd">⌘K</span>
@@ -138,46 +225,100 @@ export function AppShell() {
 
           <div className="nav-group">
             <div className="nav-group-label">Agents</div>
-            <button type="button" className="nav-item nav-parent" data-tip="Accounts Payable" onClick={() => setPage("intake")}>
-              <Receipt className="nav-icon" />
-              <span className="nav-label">Accounts Payable</span>
-            </button>
-            <div className="nav-sub">
-              {item("intake", "Invoice Intake", FileInput)}
-              {item("runs", "Runs", History)}
-              {item("vendors", "Vendors", Users)}
-              {item("rules", "Rules & policy", Scale)}
-            </div>
-            {soon("Receiving", Truck)}
+            {AGENTS.map((agent) => {
+              const isOpen = !!open[agent.id];
+              const active = currentAgent === agent.id;
+              const Icon = agent.icon;
+              return (
+                <div key={agent.id} className="nav-agent">
+                  <button
+                    type="button"
+                    className="nav-item nav-parent"
+                    data-active={active ? "true" : undefined}
+                    aria-expanded={collapsed ? undefined : isOpen}
+                    onClick={() => (collapsed ? go(`${agent.id}/${agent.items[0].id}`) : setOpen((o) => ({ ...o, [agent.id]: !isOpen })))}
+                    onMouseEnter={(e) => showFlyout(agent.id, e.currentTarget, { agent })}
+                    onMouseLeave={hideFlyout}
+                    onFocus={(e) => showFlyout(agent.id, e.currentTarget, { agent })}
+                    onBlur={hideFlyout}
+                  >
+                    <Icon className="nav-icon" />
+                    <span className="nav-label">{agent.label}</span>
+                    <ChevronRight className="nav-chev" data-open={isOpen ? "true" : undefined} size={14} aria-hidden="true" />
+                  </button>
+                  <div className="nav-sub-wrap" data-open={isOpen && !collapsed ? "true" : undefined}>
+                    <div className="nav-sub" inert={!isOpen || collapsed ? true : undefined}>
+                      {agent.items.map((sub) => {
+                        const id = `${agent.id}/${sub.id}`;
+                        return (
+                          <button key={id} type="button" className="nav-item nav-subitem" aria-current={page === id ? "page" : undefined} onClick={() => go(id)}>
+                            <span className="nav-label">{sub.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           <div className="nav-group">
             <div className="nav-group-label">Workspace</div>
-            {item("connections", "Connections", Plug)}
-            {item("knowledge", "Knowledge", BookOpen)}
-            {item("settings", "Settings", Settings)}
+            {item("control-panel", "Control Panel", SlidersHorizontal)}
           </div>
         </div>
 
         <AccountFooter />
       </nav>
 
-      <div className="workspace-main">
-        {page === "intake" ? <InvoiceIntake /> : <Placeholder page={page} />}
-      </div>
+      <AnimatePresence>
+        {flyout && collapsed ? (
+          <motion.div
+            key={flyout.key}
+            className="flyout"
+            data-kind={flyout.agent ? "menu" : "tip"}
+            style={{ top: flyout.top }}
+            initial={{ opacity: 0, x: -4 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -4, transition: { duration: 0.12 } }}
+            transition={{ duration: 0.22, ease: EXPO }}
+            onMouseEnter={keepFlyout}
+            onMouseLeave={hideFlyout}
+          >
+            {flyout.agent ? (
+              <>
+                <div className="flyout-title">{flyout.agent.label}</div>
+                {flyout.agent.items.map((sub) => {
+                  const id = `${flyout.agent!.id}/${sub.id}`;
+                  return (
+                    <button key={id} type="button" className="flyout-item" aria-current={page === id ? "page" : undefined} onClick={() => go(id)}>
+                      {sub.label}
+                    </button>
+                  );
+                })}
+              </>
+            ) : (
+              flyout.label
+            )}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <div className="workspace-main">{page === "ap/intake" ? <InvoiceIntake /> : <Placeholder page={page} />}</div>
     </div>
   );
 }
 
-function Placeholder({ page }: { page: Page }) {
-  const [group, title] = PAGE_TITLES[page];
+function Placeholder({ page }: { page: string }) {
+  const [group, title] = titleFor(page);
   return (
     <div className="page">
       <Topbar crumbs={[{ label: group }, { label: title }]} />
       <main className="placeholder">
         <div className="placeholder-inner">
           <h1>{title}</h1>
-          <p>This surface isn&apos;t designed yet. Invoice Intake is the first one built.</p>
+          <p>This surface isn&apos;t designed yet. Intake is the first one built.</p>
         </div>
       </main>
     </div>

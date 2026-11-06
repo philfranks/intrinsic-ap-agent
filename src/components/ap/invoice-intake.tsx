@@ -140,7 +140,7 @@ export function InvoiceIntake() {
       <Topbar
         crumbs={[
           { label: "Accounts Payable" },
-          { label: "Invoice Intake", onClick: idle ? undefined : () => reset() },
+          { label: "Intake", onClick: idle ? undefined : () => reset() },
           ...(state.file ? [{ label: state.file.name, mono: true }] : []),
         ]}
         actions={
