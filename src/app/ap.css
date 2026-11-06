@@ -737,23 +737,31 @@
   white-space: nowrap;
 }
 
-.chip-name svg {
-  flex: none;
-  color: var(--muted);
-}
+
 
 .chip-status {
   display: inline-flex;
   align-items: center;
   flex: none;
-  gap: 7px;
+  gap: 6px;
   height: 22px;
-  padding: 0 8px;
+  padding: 0 9px;
   border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent-text);
   font-size: 12px;
   font-weight: 500;
+}
+
+.chip-status[data-state="running"] {
+  padding-left: 7px;
+  background: var(--hover);
+  color: var(--ink-2);
+}
+
+.chip-spinner {
+  width: 12px;
+  height: 12px;
+  color: var(--accent);
+  animation: spin 0.9s linear infinite;
 }
 
 .chip-status[data-state="hold"] {
@@ -777,19 +785,12 @@
 }
 
 .chip-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
+  overflow: hidden;
   color: var(--muted);
-  font-family: var(--font-mono-ui);
-  font-size: 11px;
-  line-height: 16px;
-}
-
-.chip-meta span {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  font-size: 13px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .segbar {
@@ -819,11 +820,12 @@
 
 .segbar span[data-status="done"]::after {
   transform: scaleX(1);
+  background: var(--state-ok);
 }
 
 .segbar span[data-status="flagged"]::after {
   transform: scaleX(1);
-  background: var(--il-amber);
+  background: var(--state-warn);
 }
 
 .segbar span[data-status="running"]::after {
@@ -1857,6 +1859,7 @@
   .tl-node-spin,
   .caret,
   .segbar span::after,
+  .chip-spinner,
   .inv-scan,
   .drop-veil,
   .approval-dot {

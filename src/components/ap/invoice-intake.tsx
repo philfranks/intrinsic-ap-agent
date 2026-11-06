@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ChevronRight, FileText, RotateCcw, Upload } from "lucide-react";
+import { ChevronRight, RotateCcw } from "lucide-react";
 import { LANGFUSE, NCTL } from "@/lib/ap/scenarios";
 import type { DraftStatus, Scenario } from "@/lib/ap/types";
 import { completedRun, fmtSize, useInvoiceRun, type RunFile, type RunState } from "@/lib/ap/use-run";
@@ -311,38 +311,55 @@ function FileChip({ state, thumbFrom }: { state: RunState; thumbFrom: string | n
         transition={{ duration: 0.5, ease: EXPO, delay: 0.3 }}
       >
         <div className="chip-row">
-          <span className="chip-name">
-            <FileText size={14} aria-hidden="true" />
-            {f.name}
-          </span>
-          <span className="chip-status" data-state={complete ? state.draft : "running"}>
+          <span className="chip-name">{f.name}</span>
+          <AnimatePresence mode="wait" initial={false}>
             {complete ? (
-              {
-                hold: `Draft on hold · ${s.holdReasons.length} reasons`,
-                released: "Released · awaiting approval",
-                approved: `Approved · pays ${s.paymentDate}`,
-                rejected: "Rejected",
-                empty: "",
-                drafting: "",
-              }[state.draft]
+              <motion.span
+                key="final"
+                className="chip-status"
+                data-state={state.draft}
+                initial={{ opacity: 0, y: 3 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.5, ease: EXPO }}
+              >
+                {
+                  {
+                    hold: `Draft on hold · ${s.holdReasons.length} reasons`,
+                    released: "Released · awaiting approval",
+                    approved: `Approved · pays ${s.paymentDate}`,
+                    rejected: "Rejected",
+                    empty: "",
+                    drafting: "",
+                  }[state.draft]
+                }
+              </motion.span>
             ) : (
-              <>
-                <span className="live-dot" />
-                Step {Math.max(1, runningIndex + 1)} of {steps.length} · {steps[Math.max(0, runningIndex)].title}
-              </>
+              <motion.span
+                key="progress"
+                className="chip-status"
+                data-state="running"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0, transition: { duration: 0.2 } }}
+              >
+                <svg className="chip-spinner" viewBox="0 0 16 16" aria-hidden="true">
+                  <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="1.6" opacity="0.2" />
+                  <path d="M8 2a6 6 0 0 1 6 6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                </svg>
+                In progress
+              </motion.span>
             )}
-          </span>
+          </AnimatePresence>
         </div>
-        <div className="chip-meta">
-          <span>
-            {f.pages} page{f.pages === 1 ? "" : "s"}
-          </span>
-          <span>{fmtSize(f.size)}</span>
-          <span>sha256 {f.sha.slice(0, 12)}…</span>
-          <span>
-            <Upload size={11} aria-hidden="true" /> {f.source === "upload" ? "Dropped by you" : `Received ${f.when}`} · {s.intake}
-          </span>
-        </div>
+        <p className="chip-meta">
+          {[
+            `${f.pages} page${f.pages === 1 ? "" : "s"}`,
+            fmtSize(f.size),
+            `sha256 ${f.sha.slice(0, 12)}…`,
+            ...(f.source === "recent" && f.when ? [`Received ${f.when}`] : []),
+          ].join(" · ")}
+        </p>
         <div className="segbar" aria-hidden="true">
           {steps.map((d, i) => {
             const st = state.steps[d.id]?.status;
@@ -350,7 +367,7 @@ function FileChip({ state, thumbFrom }: { state: RunState; thumbFrom: string | n
           })}
         </div>
         <span className="sr-only">
-          {doneCount} of {steps.length} steps complete
+          {doneCount} of {steps.length} steps complete{runningIndex >= 0 ? `, now ${steps[runningIndex].title}` : ""}
         </span>
       </motion.div>
     </motion.div>
