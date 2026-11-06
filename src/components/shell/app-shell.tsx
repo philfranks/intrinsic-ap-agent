@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   BookOpen,
   ChevronsUpDown,
@@ -48,9 +48,24 @@ function SignalLogo({ size = 22 }: { size?: number }) {
   );
 }
 
+const NARROW = "(max-width: 1023px)";
+function useNarrow() {
+  return useSyncExternalStore(
+    (cb) => {
+      const m = window.matchMedia(NARROW);
+      m.addEventListener("change", cb);
+      return () => m.removeEventListener("change", cb);
+    },
+    () => window.matchMedia(NARROW).matches,
+    () => false,
+  );
+}
+
 export function AppShell() {
   const [page, setPage] = useState<Page>("intake");
-  const [collapsed, setCollapsed] = useState(false);
+  const [userCollapsed, setCollapsed] = useState(false);
+  const narrow = useNarrow();
+  const collapsed = narrow || userCollapsed;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -96,6 +111,7 @@ export function AppShell() {
           <button
             type="button"
             className="icon-btn"
+            hidden={narrow}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             title="Toggle sidebar (⌘\)"
             onClick={() => setCollapsed((c) => !c)}

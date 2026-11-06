@@ -612,12 +612,6 @@ ul {
 }
 
 @media (max-width: 1023px) {
-  .app {
-    --rail-w: 60px;
-  }
-}
-
-@media (max-width: 1023px) {
   .workspace-main {
     overflow-y: auto;
   }
