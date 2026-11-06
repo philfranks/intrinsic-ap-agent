@@ -10,6 +10,13 @@ const EXPO = [0.16, 1, 0.3, 1] as const;
 
 const fmtMs = (ms: number) => `${Math.round(ms).toLocaleString()} ms`;
 
+/** What a model step is doing while it runs, in plain words. */
+const WORKING: Record<string, string> = {
+  classify: "Reading the document…",
+  extract: "Pulling out the header and line items…",
+  code: "Coding lines against your chart of accounts…",
+};
+
 export function StepTimeline({
   state,
   scrollRoot,
@@ -86,7 +93,7 @@ export function StepTimeline({
                 </span>
               ) : null}
             </div>
-            <div className="tl-body">
+            <div className="tl-body" data-settled={settled ? "true" : undefined}>
               <button
                 type="button"
                 className="tl-head"
@@ -99,9 +106,11 @@ export function StepTimeline({
                   <span className="tl-tag-dot" />
                   {def.tag}
                 </span>
-                <span className="tl-time">
-                  <StepTime s={s} />
-                </span>
+                {s.status === "running" ? (
+                  <span className="tl-time">
+                    <StepTime s={s} />
+                  </span>
+                ) : null}
                 {settled ? <ChevronRight className="tl-chev" data-open={expanded ? "true" : undefined} aria-hidden="true" /> : null}
               </button>
 
@@ -142,7 +151,6 @@ export function StepTimeline({
 function StepTime({ s }: { s: StepState }) {
   const now = useTicker(s.status === "running", 47);
   if (s.status === "running" && s.startedAt) return <span className="tl-time-live">{fmtMs(Math.max(0, now - s.startedAt))}</span>;
-  if (s.ms != null) return <span>{fmtMs(s.ms)}</span>;
   return null;
 }
 
@@ -201,18 +209,13 @@ function StepNode({ status, index }: { status: StepState["status"]; index: numbe
 
 function StepDetail({ def, s }: { def: StepDef; s: StepState }) {
   const [showPayload, setShowPayload] = useState(false);
-  const thinking = def.stream && s.stream.length === 0 && s.status === "running";
 
   return (
     <div className="tl-detail">
-      {def.stream ? (
-        <div className="tl-console" data-done={s.streamDone ? "true" : undefined}>
-          <div className="tl-console-head">
-            <span>{thinking ? <span className="shimmer">Reading the document…</span> : "Model output"}</span>
-            {s.stream.length ? <span>{s.stream.length.toLocaleString()} chars</span> : null}
-          </div>
-          <ConsoleText text={s.stream} done={s.streamDone} />
-        </div>
+      {def.stream && !s.streamDone ? (
+        <p className="tl-working">
+          <span className="shimmer">{WORKING[def.id] ?? "Working…"}</span>
+        </p>
       ) : null}
 
       <AnimatePresence initial={false}>
@@ -331,20 +334,6 @@ function StepDetail({ def, s }: { def: StepDef; s: StepState }) {
         ) : null}
       </AnimatePresence>
     </div>
-  );
-}
-
-function ConsoleText({ text, done }: { text: string; done: boolean }) {
-  const ref = useRef<HTMLPreElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [text]);
-  return (
-    <pre ref={ref} className="tl-console-text">
-      {text}
-      {!done ? <span className="caret" /> : null}
-    </pre>
   );
 }
 

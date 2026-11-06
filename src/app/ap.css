@@ -872,7 +872,8 @@
   place-items: center;
   width: 24px;
   height: 24px;
-  margin-top: 2px;
+  /* centered on the panel's title row: 1px border + 9px padding + half of the 28px row - half the node */
+  margin-top: 12px;
   flex: none;
   border: 1px solid var(--line-strong);
   border-radius: 999px;
@@ -934,30 +935,56 @@
   }
 }
 
+/* The connector: faint while ahead, drawn in the rail's guide-line color once a step is done */
 .tl-line {
   position: relative;
   width: 1px;
   flex: 1;
   min-height: 12px;
-  margin: 4px 0;
-  background: var(--line);
+  margin: 4px 0 -8px;
+  background: color-mix(in srgb, var(--line) 60%, transparent);
 }
 
 .tl-line-fill {
   position: absolute;
   inset: 0;
   transform-origin: top;
-  background: var(--ink);
-  opacity: 0.3;
+  background: var(--line-strong);
 }
 
+/*
+ * Each step sits in a panel. While a step is pending or running the panel is invisible;
+ * once it finishes it takes the file chip's card body, and the expanded detail opens inside it.
+ */
 .tl-body {
   min-width: 0;
-  padding-bottom: 18px;
+  margin-bottom: 8px;
+  padding: 9px 14px 10px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  transition: background-color 450ms var(--ease), border-color 450ms var(--ease), box-shadow 450ms var(--ease);
+}
+
+.tl-body[data-settled="true"] {
+  border-color: var(--line);
+  background: var(--card);
+  box-shadow: 0 1px 2px rgb(19 18 16 / 0.03);
 }
 
 .tl-step[data-last="true"] .tl-body {
-  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+/* Inner blocks sit on Off White inside a white card */
+.tl-body[data-settled="true"] .tl-table,
+.tl-body[data-settled="true"] .tl-cands {
+  background: var(--bg);
+}
+
+.tl-working {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
 }
 
 .tl-head {
@@ -1043,6 +1070,10 @@
   transition: transform 250ms var(--ease-out-expo);
 }
 
+.tl-head .tl-chev {
+  margin-left: auto;
+}
+
 .tl-chev[data-open="true"] {
   transform: rotate(90deg);
 }
@@ -1064,62 +1095,6 @@
   flex-direction: column;
   gap: 10px;
   padding-top: 8px;
-}
-
-.tl-console {
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--rail);
-}
-
-.tl-console-head {
-  display: flex;
-  justify-content: space-between;
-  padding: 7px 12px;
-  border-bottom: 1px solid var(--line);
-  color: var(--muted);
-  font-family: var(--font-mono-ui);
-  font-size: 10.5px;
-  letter-spacing: 0.02em;
-}
-
-.tl-console-text {
-  position: relative;
-  max-height: 104px;
-  margin: 0;
-  padding: 10px 12px;
-  overflow: hidden;
-  color: var(--ink-2);
-  font-family: var(--font-mono-ui);
-  font-size: 11.5px;
-  line-height: 17px;
-  white-space: pre-wrap;
-  word-break: break-all;
-  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 28px);
-  mask-image: linear-gradient(180deg, transparent 0, #000 28px);
-}
-
-.tl-console[data-done="true"] .tl-console-text {
-  max-height: 72px;
-  color: var(--muted);
-  transition: max-height 400ms var(--ease-out-expo), color 400ms;
-}
-
-.caret {
-  display: inline-block;
-  width: 7px;
-  height: 13px;
-  margin-left: 1px;
-  vertical-align: -2px;
-  background: var(--il-orange);
-  animation: blink 1s steps(2, start) infinite;
-}
-
-@keyframes blink {
-  to {
-    visibility: hidden;
-  }
 }
 
 .tl-prose {
@@ -1857,7 +1832,6 @@
   .live-dot,
   .tl-node-halo,
   .tl-node-spin,
-  .caret,
   .segbar span::after,
   .chip-spinner,
   .inv-scan,
