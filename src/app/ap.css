@@ -303,10 +303,10 @@
 .drop-art {
   --drop-ink: var(--ink);
   --drop-paper: var(--card);
-  /* Pale orange at the rim, fading into Off White at the floor so the tray blends into the page */
+  /* Off White at the rim, pale orange at the floor, so the tray's opening blends into the page */
   --drop-fold: #fbe2cc;
-  --drop-tray-top: #fbe0ca;
-  --drop-tray-bottom: var(--bg);
+  --drop-tray-top: var(--bg);
+  --drop-tray-bottom: #fbe0ca;
   --drop-tray-ink: var(--ink);
   display: block;
   margin-bottom: 28px;
@@ -314,17 +314,17 @@
 }
 
 .drop-art[data-armed="true"] {
-  --drop-tray-top: #fccbaa;
+  --drop-tray-bottom: #fccbaa;
   --drop-tray-ink: var(--accent);
 }
 
 :root[data-theme="dark"] .drop-art {
   --drop-fold: #4a2a1d;
-  --drop-tray-top: #44271b;
+  --drop-tray-bottom: #44271b;
 }
 
 :root[data-theme="dark"] .drop-art[data-armed="true"] {
-  --drop-tray-top: #6a3420;
+  --drop-tray-bottom: #6a3420;
 }
 
 .drop-art path,
@@ -360,9 +360,9 @@
 }
 
 .drop-veil {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  z-index: 20;
+  z-index: 100;
   opacity: 0;
   pointer-events: none;
   box-shadow:
