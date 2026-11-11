@@ -141,7 +141,7 @@ export function InvoiceIntake() {
         crumbs={[
           { label: "Accounts Payable" },
           { label: "Intake", onClick: idle ? undefined : () => reset() },
-          ...(state.file ? [{ label: state.file.name, mono: true }] : []),
+          ...(state.file ? [{ label: state.file.name }] : []),
         ]}
         actions={
           <AnimatePresence>

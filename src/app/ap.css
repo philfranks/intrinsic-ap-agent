@@ -1017,6 +1017,16 @@
   color: var(--faint);
 }
 
+/* Mono inside the step boxes follows the eyebrow rule: uppercase with a little tracking */
+.tl-tag,
+.tl-cand-meta,
+.tl-item-meta,
+.tl-score-num,
+.tl-table-row span:not(:last-child) {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .tl-tag {
   display: inline-flex;
   align-items: center;
@@ -1328,8 +1338,40 @@
   margin-top: 10px;
 }
 
+.tl-code {
+  position: relative;
+  margin-top: 8px;
+}
+
+.tl-copy {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 150ms var(--ease), background-color 150ms var(--ease);
+}
+
+.tl-copy:hover {
+  color: var(--ink);
+  background: var(--hover);
+}
+
+.tl-copy[data-copied="true"] {
+  color: var(--state-ok);
+}
+
 .tl-payload pre {
-  margin: 8px 0 0;
+  margin: 0;
   padding: 10px 12px;
   overflow: auto;
   border: 1px solid var(--line);
@@ -1620,19 +1662,19 @@
 }
 
 .rail-foot {
-  padding: 12px;
-  border-top: 1px solid var(--line);
+  /* The approval box runs the full width of the panel */
+  padding: 0;
 }
 
 .approval {
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  padding: 16px 18px 18px;
+  border-top: 1px solid var(--line);
   background: var(--card);
 }
 
 .approval[data-tone="warn"] {
-  border-color: color-mix(in srgb, var(--il-amber) 55%, var(--line));
+  border-top-color: color-mix(in srgb, var(--il-amber) 70%, var(--line));
+  background: color-mix(in srgb, var(--il-amber) 6%, var(--card));
 }
 
 .approval-title {
@@ -1700,31 +1742,6 @@
   display: flex;
   gap: 8px;
   margin-top: 12px;
-}
-
-.stats {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  margin: 10px 2px 0;
-}
-
-.stats > div {
-  display: flex;
-  flex-direction: column-reverse;
-}
-
-.stats dd {
-  margin: 0;
-  font-family: var(--font-mono-ui);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  line-height: 18px;
-}
-
-.stats dt {
-  color: var(--muted);
-  font-size: 10.5px;
-  line-height: 14px;
 }
 
 .feed {

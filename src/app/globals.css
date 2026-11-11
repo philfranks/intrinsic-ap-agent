@@ -774,11 +774,6 @@ ul {
   font-weight: 500;
 }
 
-.crumb-item[data-mono="true"] {
-  font-family: var(--font-mono-ui);
-  font-size: 12px;
-  font-weight: 400;
-}
 
 .crumb-sep {
   display: flex;

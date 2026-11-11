@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, animate, motion } from "motion/react";
 import { ArrowUpRight, ChevronRight, User } from "lucide-react";
 import type { DraftFieldKey } from "@/lib/ap/types";
-import { useTicker, type DraftLine, type RunState } from "@/lib/ap/use-run";
+import type { DraftLine, RunState } from "@/lib/ap/use-run";
 
 const EXPO = [0.16, 1, 0.3, 1] as const;
 const FLOOR = 80;
@@ -101,7 +101,6 @@ export function DraftRail({
 
       <footer className="rail-foot">
         <Approval state={state} onDecide={onDecide} />
-        <Stats state={state} />
       </footer>
     </aside>
   );
@@ -306,28 +305,6 @@ function Approval({
         </motion.div>
       </AnimatePresence>
     </motion.div>
-  );
-}
-
-function Stats({ state }: { state: RunState }) {
-  const now = useTicker(state.phase === "running", 100);
-  const elapsed = state.startedAt != null ? Math.max(0, (state.endedAt ?? (state.phase === "running" ? now : state.startedAt)) - state.startedAt) / 1000 : 0;
-  const items: [string, string][] = [
-    ["Elapsed", `${elapsed.toFixed(1)}s`],
-    ["Model calls", String(state.stats.modelCalls)],
-    ["Tokens", state.stats.tokens.toLocaleString()],
-    ["Spend", `$${state.stats.spend.toFixed(3)}`],
-    ["Human", String(state.stats.humanTouches)],
-  ];
-  return (
-    <dl className="stats">
-      {items.map(([k, v]) => (
-        <div key={k}>
-          <dd>{v}</dd>
-          <dt>{k}</dt>
-        </div>
-      ))}
-    </dl>
   );
 }
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ChevronRight, CircleCheck, Info, OctagonAlert, TriangleAlert } from "lucide-react";
+import { Check, ChevronRight, Copy, CircleCheck, Info, OctagonAlert, TriangleAlert } from "lucide-react";
 import type { StepDef, StepItem, Tone } from "@/lib/ap/types";
 import { useTicker, type RunState, type StepState } from "@/lib/ap/use-run";
 
@@ -318,14 +318,16 @@ function StepDetail({ def, s }: { def: StepDef; s: StepState }) {
                 </button>
                 <AnimatePresence initial={false}>
                   {showPayload ? (
-                    <motion.pre
+                    <motion.div
+                      className="tl-code"
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.4, ease: EXPO }}
                     >
-                      {def.payload}
-                    </motion.pre>
+                      <CopyButton text={def.payload} />
+                      <pre>{def.payload}</pre>
+                    </motion.div>
                   ) : null}
                 </AnimatePresence>
               </div>
@@ -334,6 +336,34 @@ function StepDetail({ def, s }: { def: StepDef; s: StepState }) {
         ) : null}
       </AnimatePresence>
     </div>
+  );
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(false), 1600);
+    return () => clearTimeout(t);
+  }, [copied]);
+  return (
+    <button
+      type="button"
+      className="tl-copy"
+      data-copied={copied ? "true" : undefined}
+      aria-label={copied ? "Copied" : "Copy code"}
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          setCopied(true);
+        } catch {
+          // Clipboard can be blocked; nothing to undo.
+        }
+      }}
+    >
+      {copied ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
+      {copied ? "Copied" : "Copy"}
+    </button>
   );
 }
 
